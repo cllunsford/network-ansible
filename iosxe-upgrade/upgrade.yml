@@ -38,7 +38,7 @@
     - name: save running config to startup config
       ios_command:
         commands:
-          - "write mem"
+          - "write"
         provider: "{{ cli }}"
 
     - name: upgrade rommon
@@ -92,6 +92,12 @@
       ios_config:
         lines:
           - "boot system bootflash:{{ system_image }}"
+        provider: "{{ cli }}"
+
+    - name: save running config to startup config
+      ios_command:
+        commands:
+          - "write"
         provider: "{{ cli }}"
 
     - name: reboot redundant route processor
