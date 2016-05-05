@@ -10,6 +10,8 @@
       host: "{{ inventory_hostname }}"
       username: cisco
       password: cisco
+      authorize: true
+      auth_pass: cisco
     rommon_image: asr1000-rommon.162-1r.pkg
     system_image: 16.2-universal-image.bin
   tasks:
@@ -41,10 +43,12 @@
           - "write"
         provider: "{{ cli }}"
 
+    # Wait up to 10 minutes for rommon upgrade to complete
     - name: upgrade rommon
       ios_command:
         commands:
           - "upgrade rom-monitor filename bootflash:{{ rommon_image }} all"
+        timeout: 600
         provider: "{{ cli }}"
 
     - name: determine if redundant route processor is present
