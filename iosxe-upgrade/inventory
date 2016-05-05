@@ -1,0 +1,3 @@
+# Add one line per device, must use `ansible_connection=local`
+
+172.16.1.57  ansible_connection=local

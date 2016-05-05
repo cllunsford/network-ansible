@@ -1,0 +1,124 @@
+#
+# IOS XE 16.2 Upgrade Playbook
+#
+# http://www.cisco.com/c/en/us/td/docs/ios-xml/ios/16_xe/b-XE-Denali16-2-migration-guide-for-access-and-edge-routers.html
+#
+---
+- hosts: all
+  vars:
+    cli:
+      host: "{{ inventory_hostname }}"
+      username: cisco
+      password: cisco
+    rommon_image: asr1000-rommon.162-1r.pkg
+    system_image: 16.2-universal-image.bin
+  tasks:
+    - name: show contents of bootflash
+      ios_command:
+        commands:
+          - "dir bootflash:"
+        provider: "{{ cli }}"
+      register: dir_bootflash
+
+    - name: verify rommon image is present on bootflash
+      fail: msg="rommon image '{{ rommon_image }}' is not present.  Copy image to bootflash and re-run playbook."
+      when: '"{{ rommon_image }}" not in dir_bootflash.stdout[0]'
+
+    - name: verify system image is present on bootflash
+      fail: msg="system image '{{ system_image }}' is not present.  Copy image to bootflash and re-run playbook."
+      when: '"{{ system_image }}" not in dir_bootflash.stdout[0]'
+
+    # Extra \n required to confirm prompt
+    - name: backup running config
+      ios_command:
+        commands:
+          - "copy running-config bootflash:ansible-{{ ansible_date_time.iso8601 }}.cfg\n"
+        provider: "{{ cli }}"
+
+    - name: save running config to startup config
+      ios_command:
+        commands:
+          - "write mem"
+        provider: "{{ cli }}"
+
+    - name: upgrade rommon
+      ios_command:
+        commands:
+          - "upgrade rom-monitor filename bootflash:{{ rommon_image }} all"
+        provider: "{{ cli }}"
+
+    - name: determine if redundant route processor is present
+      ios_command:
+        commands:
+          - "show platform | i ^R1"
+        provider: "{{ cli }}"
+      register: show_platform_r1
+
+    - name: reboot redundant route processor
+      ios_command:
+        commands:
+          - "hw-module slot R1 reload"
+        provider: "{{ cli }}"
+      when: "'R1' in show_platform_r1.stdout"
+
+    # \n for confirm reload
+    - name: reboot route processor
+      ios_command:
+        commands:
+          - "reload\n"
+        provider: "{{ cli }}"
+      async: 1
+      poll: 0
+      ignore_errors: true
+
+    - name: wait for router reload
+      wait_for: host={{ inventory_hostname }} port=22 delay=10 timeout=600
+
+    - name: grab current boot system version
+      ios_command:
+        commands:
+          - "show run | i boot system"
+        provider: "{{ cli }}"
+      register: show_boot_system
+
+    - name: remove old boot system version
+      ios_config:
+        lines:
+          - "no {{ show_boot_system.stdout[0] }}"
+        provider: "{{ cli }}"
+      when: show_boot_system.stdout[0].strip() != ''
+
+    - name: update boot system version
+      ios_config:
+        lines:
+          - "boot system bootflash:{{ system_image }}"
+        provider: "{{ cli }}"
+
+    - name: reboot redundant route processor
+      ios_command:
+        commands:
+          - "hw-module slot R1 reload"
+        provider: "{{ cli }}"
+      when: "'R1' in show_platform_r1.stdout"
+
+    # \n for confirm reload
+    - name: reboot route processor
+      ios_command:
+        commands:
+          - "reload\n"
+        provider: "{{ cli }}"
+      async: 1
+      poll: 0
+      ignore_errors: true
+
+    - name: wait for router reload
+      wait_for: host={{ inventory_hostname }} port=22 delay=10 timeout=600
+
+    - name: show version
+      ios_command:
+        commands:
+          - "show version"
+        provider: "{{ cli }}"
+      register: show_version
+
+    - debug: var=show_version.stdout_lines[0][0]
