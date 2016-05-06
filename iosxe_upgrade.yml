@@ -6,12 +6,6 @@
 ---
 - hosts: all
   vars:
-    cli:
-      host: "{{ inventory_hostname }}"
-      username: cisco
-      password: cisco
-      authorize: true
-      auth_pass: cisco
     rommon_image: asr1000-rommon.162-1r.pkg
     system_image: 16.2-universal-image.bin
   tasks:

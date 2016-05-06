@@ -1,0 +1,3 @@
+devices
+group_vars/all
+*.retry

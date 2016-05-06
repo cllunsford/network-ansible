@@ -1,0 +1,8 @@
+# Add one line per device
+# Use `ansible_connection=local` for network devices
+#
+#[asr]
+#192.168.1.1  ansible_connection=local
+#
+#[csr]
+#192.168.2.1  ansible_connection=local
